@@ -1,8 +1,8 @@
 # Infrastructure Overview
 
-Personal homelab running a self-hosted Kubernetes cluster on Proxmox, managed with GitOps and monitored with a full observability stack.
+Personal homelab and cloud infrastructure — self-hosted Kubernetes cluster on Proxmox, AWS and Azure environments provisioned with Terraform, managed with GitOps and monitored with a full observability stack.
 
-## Architecture
+## Homelab Architecture
 
 ```mermaid
 graph TB
@@ -58,52 +58,87 @@ graph TB
         DISCORD[Discord]
     end
 
-    %% External traffic
     CF -->|Cloudflare Tunnel| CV
     CF -->|Cloudflare Tunnel| GAZ
 
-    %% GitOps flow
     GH -->|push triggers CI| GHCR
     GHCR -->|image pull| K8S
     GH -->|GitOps sync| ARGO
     ARGO -->|deploys| Apps
 
-    %% BGP
     BGP <-->|eBGP peering| R1
     BGP <-->|eBGP peering| R2
 
-    %% Observability
     ALLOY -->|logs| LOKI
     ALLOY -->|scrapes pod logs| Workers
     PROM -->|scrapes metrics| Workers
-    PROM -->|remote write| PROM
     LOKI -->|datasource| GRAF
     PROM -->|datasource| GRAF
     GRAF -->|alerts| DISCORD
 
-    %% Storage
     CSI -->|PersistentVolumes| Monitoring
     CSI -->|PersistentVolumes| FORGEJO
     CSI -->|PersistentVolumes| IMMICH
 ```
 
+## Cloud Architecture
+
+```mermaid
+graph LR
+    subgraph AWS["AWS — Terraform"]
+        direction TB
+        VPC[VPC\nsubnets + routing]
+        EKS[EKS Cluster]
+        ECR[ECR]
+        S3[S3]
+        IAM[IAM roles\n+ policies]
+        VPC --> EKS
+        ECR --> EKS
+        IAM --> EKS
+    end
+
+    subgraph Azure["Azure — Terraform"]
+        direction TB
+        VNET[VNet]
+        AKS[AKS Cluster]
+        ACR[Azure Container\nRegistry]
+        VNET --> AKS
+        ACR --> AKS
+    end
+
+    TF[Terraform] -->|provisions| AWS
+    TF -->|provisions| Azure
+```
+
 ## Stack
+
+### Homelab
 
 | Layer | Technology |
 |-------|-----------|
 | Hypervisor | Proxmox VE |
-| OS | Ubuntu 22.04 (provisioned with Ansible) |
-| Kubernetes | kubeadm, v1.31 |
+| OS provisioning | Ansible |
+| Kubernetes | kubeadm v1.31 |
 | CNI | Cilium (kube-proxy replacement, BGP control plane) |
 | GitOps | ArgoCD |
 | CI/CD | GitHub Actions → GHCR |
 | Ingress | Cloudflare Tunnel |
 | Storage | Proxmox CSI Plugin |
 | Monitoring | Prometheus + Grafana + Alloy + Loki |
-| Alerting | Grafana → Discord webhooks |
-| Git hosting | Forgejo (self-hosted) + GitHub |
+| Alerting | Grafana → Discord |
+| Git hosting | Forgejo (self-hosted) |
+
+### Cloud
+
+| Layer | Technology |
+|-------|-----------|
+| IaC | Terraform |
+| AWS | VPC, EKS, ECR, S3, IAM |
+| Azure | VNet, AKS, ACR |
 
 ## Repositories
+
+### Homelab
 
 | Repository | Description |
 |------------|-------------|
@@ -113,7 +148,14 @@ graph TB
 | [vm-bootstrap-ansible](https://github.com/pascariucosmin93/vm-bootstrap-ansible) | Ansible roles for VM provisioning and security hardening |
 | [k8s-network-policies](https://github.com/pascariucosmin93/k8s-network-policies) | Kubernetes + CiliumNetworkPolicy for all namespaces |
 | [monitoring-stack](https://github.com/pascariucosmin93/monitoring-stack) | Helm values and ArgoCD apps for the observability stack |
-| [calculatorgaz](https://github.com/pascariucosmin93/calculatorgaz) | Gas price simulator — TypeScript microservices app |
+| [calculatorgaz](https://github.com/pascariucosmin93/calculatorgaz) | Gas price simulator — TypeScript microservices |
+
+### Cloud
+
+| Repository | Description |
+|------------|-------------|
+| [aws-infra](https://github.com/pascariucosmin93/aws-infra) | AWS infrastructure — VPC, EKS, IAM with Terraform |
+| [azure-aks-platform](https://github.com/pascariucosmin93/azure-aks-platform) | Azure AKS platform with Terraform |
 
 ## Network
 
